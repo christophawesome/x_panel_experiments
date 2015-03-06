@@ -1,0 +1,88 @@
+<?php 
+
+function x_panel_experiments_block($op = 'list', $delta = 0, $edit = array()) {
+	global $panel;
+	
+	switch ($op) {
+		case 'list':
+			$blocks[0]['info'] = t('Panel Experiment');
+			return $blocks;
+		case 'view':
+			
+			if (arg(0) != 'node' || !is_numeric(arg(1))) {
+				return array();
+			}
+			
+			$nid = (int)arg(1);
+			$node = node_load($nid);
+			
+			if (isset($node->panels_node)) {
+				$did = $node->panels_node["did"];
+				$display = panels_load_display($did);
+				$panelCssClasses = array();
+				
+				foreach($display->content as $pid => $value) {
+					if ($value->subtype == "x_panel_experiments-0") {
+						$experimentsId = $value->configuration["override_title_text"];
+					} else {			
+
+						if (strpos($value->css["css_class"], "gexp-var") !== FALSE) {
+							$panelCssClasses[] = $value->css["css_class"];
+						}
+					}
+				}
+				
+				$panelCssClasses = array_unique($panelCssClasses);
+				asort($panelCssClasses);
+
+			}
+
+			$output = x_panels_experiments_getcode($experimentsId, $panelCssClasses);
+			
+			$block[0]['content'] = "<!-- Google Experiments for Panels -->$output";
+			return $block[$delta];
+	}
+}
+
+
+function x_panels_experiments_getcode($experimentsId, $panelCssClasses) {
+	
+	if (!isset($experimentsId) || count($panelCssClasses) <= 1) return "<!-- no experiment available -->";
+	
+	$output = '<!-- Load the Content Experiment JavaScript API client for the experiment -->
+					<script src="//www.google-analytics.com/cx/api.js?experiment=' . $experimentsId . '"></script>
+					<script>
+						cxApi.setDomainName("'.$_SERVER['HTTP_HOST'].'");
+						// Ask Google Analytics which variation to show the user.
+	  					var chosenVariation = cxApi.chooseVariation();				
+								
+				';
+	  					
+		
+	$output .= 'var pageVariations = [';
+		
+	for($i = 0; $i < count($panelCssClasses); $i++) {
+			
+		$output .= 'function() {';
+			
+		for($j = 0; $j < count($panelCssClasses); $j++) {
+				
+			//if ($i <> $j) $output .= 'document.getElementsByClassName("' . $panelCssClasses[$j] . '").style.display = "none"';
+			if ($i <> $j) $output .= '$(".' . $panelCssClasses[$j] . '").css("display","none");';
+				
+		}
+	
+		$output .= '},';
+	}
+		
+	$output .= '];
+		
+								// Wait for the DOM to load, then execute the view for the chosen variation.
+								$(document).ready(
+  								//Execute the chosen view
+  								pageVariations[chosenVariation]
+								);
+								</script>';
+	
+	return $output;
+}

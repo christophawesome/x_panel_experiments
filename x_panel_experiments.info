@@ -1,0 +1,5 @@
+; $Id$
+name = "Multivaria Tests for Panels"
+description = "Adds the functionality in panels to make multi varia tests with Google Experiments"
+core = 6.x
+package = X-Module
